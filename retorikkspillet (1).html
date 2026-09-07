@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retorikkspillet</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        body { margin: 0; padding: 0; background-color: #111827; }
+        .font-mono { font-family: 'VT323', monospace; }
+        .scanlines {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+        .glitch { animation: glitch 2s linear infinite; }
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = window.React;
+
+        const retroContainer = "min-h-screen bg-gray-900 font-mono text-green-400 p-4 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden";
+        const retroBox = "bg-black border-4 border-green-500 p-6 sm:p-8 max-w-3xl w-full shadow-[0_0_20px_rgba(34,197,94,0.3)] z-10 rounded-sm";
+        const retroButton = "block w-full text-left bg-gray-900 border-2 border-green-700 hover:border-green-400 hover:bg-green-900 hover:text-white p-4 my-3 transition-colors cursor-pointer text-lg sm:text-xl active:bg-green-700 active:scale-[0.98] touch-manipulation";
+        const retroTitle = "text-3xl sm:text-5xl font-bold mb-6 text-center text-green-400 uppercase tracking-widest drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]";
+
+        const SPRITES = {
+          rektor: [
+            "......KKKK......",
+            "....KKGGGGKK....",
+            "...KGGGGGGGGK...",
+            "...KSSSSSSSSK...",
+            "..KSKWKSSKWKSK..",
+            "..KSSSSSSSSSK...",
+            "...KSSKKKKSSK...",
+            "....KSSSSSSK....",
+            "...KKKWWWWKKK...",
+            "..KKKWWWWWWKKK..",
+            ".KKKKWWRRWWRKKK.",
+            ".KKKKKWRRWKKKKK.",
+            "KSKKKKRRRRKKKKSK",
+            "KSKKKKRRRRKKKKSK",
+            "KKKKKKRRRRKKKKKK",
+            "KKKKKKKKKKKKKKKK"
+          ],
+          dog: [
+            "................",
+            "....DDDDDD......",
+            "..DDLLLLLLDD....",
+            ".DLLLLLLLLLLD...",
+            ".DLLLLLLLLLLD...",
+            "DDLLKWLLKWLLDD..",
+            "DLLLLLLLLLLLLD..",
+            "DLLLLDDDDLLLLD..",
+            "DDLLDDKKDDLLDD..",
+            ".DDDDKKKKDDDD...",
+            "..DDDDDDDDDD....",
+            "...DDDDDDDD.....",
+            "..DDDDDDDDDD....",
+            ".DDDDDDDDDDDD...",
+            ".DDDDDDDDDDDD...",
+            "................"
+          ],
+          magnusHappy: [
+            "......KKKK......",
+            "....KKHHHHKK....",
+            "...KHHHHHHHHK...",
+            "...KSSSSSSSSK...",
+            "..KSHKSSSKHSK...",
+            "..KSSSSSSSSSK...",
+            "...KSSHHHHSSK...",
+            "....KSSSSSSK....",
+            "...KKKBBBBKKK...",
+            "..KBBBBWWBBBBK..",
+            ".KBBBBBWBBBBBBK.",
+            ".KBBBBBWBBBBBBK.",
+            "KSKBBBBWBBBBKWWK",
+            "KSKBBBBBBBBBKWCK",
+            "KKKBBBBBBBBBKWWK",
+            "..KKKKKKKKKK.KK."
+          ],
+          magnusAngry: [
+            "......KKKK......",
+            "....KKHHHHKK....",
+            "...KHHHHHHHHK...",
+            "...KSSHHHHSSK...",
+            "..KSKKSSSKKKSK..",
+            "..KSSSSSSSSSK...",
+            "...KSSHHHHSSK...",
+            "....KSKKKKSK....",
+            "...KKKBBBBKKK...",
+            "..KBBBBWWBBBBK..",
+            ".KBBBBBWBBBBBBK.",
+            ".KBBBBBWBBBBBBK.",
+            "KSKBBBBWBBBBKWWK",
+            "KSKBBBBBBBBBKWCK",
+            "KKKBBBBBBBBBKWWK",
+            "..KKKKKKKKKK.KK."
+          ],
+          magnusBored: [
+            "......KKKK......",
+            "....KKHHHHKK....",
+            "...KHHHHHHHHK...",
+            "...KSSSSSSSSK...",
+            "..KSSKSSSKSSSK..",
+            "..KSSSSSSSSSK...",
+            "...KSSHHHHSSK...",
+            "....KSSKKSSK....",
+            "...KKKBBBBKKK...",
+            "..KBBBBWWBBBBK..",
+            ".KBBBBBWBBBBBBK.",
+            ".KBBBBBWBBBBBBK.",
+            "KSKBBBBWBBBBKWWK",
+            "KSKBBBBBBBBBKWCK",
+            "KKKBBBBBBBBBKWWK",
+            "..KKKKKKKKKK.KK."
+          ],
+          magnusLegend: [
+            "......KKKK......",
+            "....KKHHHHKK....",
+            "...KHHHHHHHHK...",
+            "...KSSSSSSSSK...",
+            "..KSWKSSSKWSK...",
+            "..KSUKSSSKUSK...",
+            "...KSUHHHHUSK...",
+            "....KSKKKKSK....",
+            "...KKKBBBBKKK...",
+            "..KBBBBWWBBBBK..",
+            ".KBBBBBWBBBBBBK.",
+            ".KBBBBBWBBBBBBK.",
+            "KSKBBBBWBBBBKWWK",
+            "KSKBBBBBBBBBKWCK",
+            "KKKBBBBBBBBBKWWK",
+            "..KKKKKKKKKK.KK."
+          ]
+        };
+
+        const PixelArt = ({ spriteName, scale = 6 }) => {
+          const sprite = SPRITES[spriteName];
+          if (!sprite) return null;
+          
+          const colors = {
+            '.': 'transparent',
+            'K': '#000000', 
+            'W': '#FFFFFF', 
+            'S': '#ffcd94', 
+            'H': '#4b2e1b', 
+            'B': '#e3d8c1', 
+            'G': '#888888', 
+            'R': '#a11c1c', 
+            'D': '#d49b35', 
+            'L': '#f7d57c', 
+            'C': '#3b200d', 
+            'U': '#4a7ea8'  
+          };
+
+          return (
+            <div className="flex-shrink-0 bg-gray-800 p-2 border-2 border-green-500 rounded-lg shadow-inner" style={{ display: 'inline-block' }}>
+              <svg width={16 * scale} height={16 * scale} viewBox="0 0 16 16" style={{ shapeRendering: 'crispEdges' }}>
+                {sprite.map((row, y) =>
+                  row.split('').map((char, x) => (
+                    char !== '.' && <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill={colors[char]} />
+                  ))
+                )}
+              </svg>
+            </div>
+          );
+        };
+
+        const MISSIONS = [
+          {
+            id: 1,
+            title: "OPPDRAG: Rektor",
+            spriteId: "rektor",
+            briefing: "NIVÅ 1 (ENKEL) - Rektor vurderer å kutte antall friminutt! Slikt går ikke an, og klassen er i harnisk! Du er elevrådsrepresentant, og du får ansvaret med å overbevise ham om å la være. Her gjelder det å bruke de klassiske appellformene etos, logos og patos for å få ham til å snu! Bruk argumentene klokt!",
+            stages: [
+              {
+                phaseName: "HILSEN",
+                binding: "",
+                options: [
+                  { text: "Vær hilset, rektor Tallaksen. Jeg er elevrådsrepresentant for klassen min.", type: "etos" },
+                  { text: "Hei, rektor! Godt å se deg. Jeg har med meg en oversikt over fordelene med lange pauser. Har du litt tid?", type: "logos" },
+                  { text: "Rektor! Jeg og klassen min har fått høre om det nye forslaget ditt, og vi vet ærlig talt ikke om det er en spøk eller ikke!", type: "patos" }
+                ]
+              },
+              {
+                phaseName: "INNLEDNING",
+                binding: "Når det gjelder friminuttene: ",
+                options: [
+                  { text: "Som elevrådsrepresentant snakker jeg på vegne av hele skolen, og jeg lover at vi skal oppføre oss bra.", type: "etos" },
+                  { text: "Et friminutt på 10 minutter gir oss tid til både lek, pause og å gå på do. Dessuten trenger vi lange pauser, for det tar tid å kle seg og å komme seg ut. Å kutte antall friminutt er feil vei å gå!", type: "logos" },
+                  { text: "Vi er utslitte, stressa og lei oss. Vær så snill, ha litt medfølelse med oss slitne elever!", type: "patos" }
+                ]
+              },
+              {
+                phaseName: "HOVEDDEL",
+                binding: "Videre er det viktig å tenke på at ",
+                options: [
+                  { text: "Visste du at statistikk fra Utdanningsdirektoratet viser at elever yter 20% bedre etter å ha fått frisk luft.", type: "logos" },
+                  { text: "Selv helsesykepleieren på VUS sier at det er ekstremt viktig at vi kommer oss ut midt på dagen.", type: "etos" },
+                  { text: "Tenk deg den fantastiske følelsen av frisk vind og norsk høstregn i ansiktet etter å ha sittet innestengt i et klamt klasserom! Og klasserommene våre er virkelig klamme, rektor!", type: "patos" }
+                ]
+              },
+              {
+                phaseName: "AVSLUTNING",
+                binding: "Så for å oppsummere, kjære rektor: ",
+                options: [
+                  { text: "Ikke knus drømmene våre, kjære rektor. Vi vil jo bare ut! Vi bønnfaller deg, la oss beholde friminuttene våre!", type: "patos" },
+                  { text: "Spør hvem som helst av kontaktlærerne våre; de vet at vi er til å stole på når vi får ansvar! Vis oss den samme tilliten, så kommer vi til å levere varene.", type: "etos" },
+                  { text: "Lengre pauser gir færre konflikter og bråk. Å la oss beholde friminuttet vil dermed spare lærerne for mye tid som ellers vil gå til Visma.", type: "logos" }
+                ]
+              }
+            ]
+          },
+          {
+            id: 2,
+            title: "OPPDRAG: Familiehunden",
+            spriteId: "dog",
+            briefing: "NIVÅ 2 (VANSKELIGERE) - Du vil ha hund! En søt golden retriever som skal hete Ronjus! Foreldrene dine er skeptiske. Pass på! Her ligner argumentene litt mer på hverandre. Du må avsløre kjernen i argumentene. Hvem er det du prøver å overbevise med penger, følelser eller troverdighet?",
+            stages: [
+              {
+                phaseName: "INNLEDNING",
+                binding: "Siden vi sitter her rundt middagsbordet, må jeg ta opp en viktig ting: ",
+                options: [
+                  { text: "Kjære mamma og pappa! Jeg vet at en hund koster en del, men den kjærligheten den gir oss tilbake, er verdt utrolig mye mer enn penger.", type: "patos" },
+                  { text: "Kjære mamma og pappa! Når jeg ser på kalenderen min, har jeg nøyaktig to timer frtid hver ettermiddag, som passer perfekt til å lufte hunden.", type: "logos" },
+                  { text: "Kjære mamma og pappa! Etter å ha lest tre fagbøker om hundeoppdragelse, føler jeg meg nå trygg på at jeg vet nøyaktig hva som kreves.", type: "etos" }
+                ]
+              },
+              {
+                phaseName: "HOVEDDEL",
+                binding: "I tillegg må vi tenke på at ",
+                options: [
+                  { text: "Gjennomsnittlig levetid for denne hunderasen er 12 år, noe som betyr at jeg vil ha ansvaret lenge etter at jeg har flyttet ut, og da tar jeg den med meg. Dere trenger ikke lenger å tenke på den!", type: "logos" },
+                  { text: "Hver gang jeg ser naboen gå tur med hunden sin i kveldsolen, kjenner jeg et stikk av misunnelse og en dyp lengsel etter en trofast venn.", type: "patos" },
+                  { text: "Onkel Bob-Kenny, som har drevet med hundeoppdrett i tjue år, sier at akkurat golden retrievere er den mest pålitelige å ha i en familie.", type: "etos" }
+                ]
+              },
+              {
+                phaseName: "AVSLUTNING",
+                binding: "Så til syvende og sist, mamma og pappa: ",
+                options: [
+                  { text: "Dere har alltid sagt at man vokser på ansvar, så ved å gi meg sjansen, viser dere at dere stoler på min personlige utvikling.", type: "etos" },
+                  { text: "Jeg ber dere, fra bunnen av mitt hjerte, om å fylle huset vårt med lyden av logrende haler og tassende poter før jeg blir for stor og flytter ut.", type: "patos" },
+                  { text: "Ved å fordele lufte-vaktene i et skjema, vil ingen av oss få mer enn 25% av arbeidsbyrden, noe som er veldig overkommelig for alle.", type: "logos" }
+                ]
+              }
+            ]
+          },
+          {
+            id: 3,
+            title: "OPPDRAG: Magnus (EGEN TALE)",
+            spriteId: "magnusHappy",
+            briefing: "RETORIKERENS DRØM! Læreren din, Magnus Howes Gunnerød, planlegger neste ukes opplegg i norsk. Det lukter oppgaver i nynorsk grammatikk og rettskriving lang vei. Nå er det opp til deg! Skriv din egen appell for å overbevise ham om at TV-serien 'Brødrene Dal og professor Drøvels hemmelighet' er bedre bruk av tiden! Bruk alt du har lært om etos, logos og patos. Skjebnen (og pensum) ligger i dine hender!",
+            isCustomWriting: true, 
+            stages: [] 
+          }
+        ];
+
+        function App() {
+          const [gameState, setGameState] = useState('start'); 
+          const [currentMissionIndex, setCurrentMissionIndex] = useState(0);
+          const [currentStage, setCurrentStage] = useState(0);
+          const [selections, setSelections] = useState([]);
+          const [completedMissions, setCompletedMissions] = useState([]);
+          
+          const [verifyingOption, setVerifyingOption] = useState(null);
+          const [verificationError, setVerificationError] = useState("");
+          const [shuffledOptions, setShuffledOptions] = useState([]);
+          
+          const [customText, setCustomText] = useState("");
+
+          const mission = MISSIONS[currentMissionIndex];
+
+          const shuffleArray = (array) => {
+            const newArr = [...array];
+            for (let i = newArr.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+          };
+
+          const startMission = (index) => {
+            setCurrentMissionIndex(index);
+            setSelections([]);
+            setCurrentStage(0);
+            setCustomText(""); 
+            setGameState('briefing');
+          };
+
+          const beginBuilding = () => {
+            if (MISSIONS[currentMissionIndex].isCustomWriting) {
+              setGameState('building');
+            } else {
+              setShuffledOptions(shuffleArray(MISSIONS[currentMissionIndex].stages[0].options));
+              setGameState('building');
+            }
+          };
+
+          const handleSelectOption = (option) => {
+            setVerifyingOption(option);
+            setVerificationError("");
+          };
+
+          const handleVerifyGuess = (guessType) => {
+            if (guessType === verifyingOption.type) {
+              const newSelections = [...selections, verifyingOption];
+              setSelections(newSelections);
+              setVerifyingOption(null);
+
+              if (currentStage + 1 < mission.stages.length) {
+                setCurrentStage(currentStage + 1);
+                setShuffledOptions(shuffleArray(mission.stages[currentStage + 1].options));
+              } else {
+                setGameState('result');
+                if (!completedMissions.includes(mission.id)) {
+                  setCompletedMissions(prev => [...prev, mission.id]);
+                }
+              }
+            } else {
+              let hint = "";
+              if (verifyingOption.type === "etos") hint = "Hint: Hvem er det som snakker her, og hvorfor skal vi stole på dem?";
+              if (verifyingOption.type === "logos") hint = "Hint: Er det fakta, fornuft eller sannsynlighet som brukes her?";
+              if (verifyingOption.type === "patos") hint = "Hint: Spiller dette argumentet på samvittighet, glede, frykt eller medfølelse?";
+              
+              setVerificationError(`SYSTEMFEIL! Dette er ikke ${guessType.toUpperCase()}. Les teksten igjen! ${hint}`);
+            }
+          };
+
+          const getAnalysis = () => {
+            const counts = { etos: 0, logos: 0, patos: 0 };
+            selections.forEach(sel => counts[sel.type]++);
+
+            const total = selections.length;
+            const typesUsed = (counts.etos > 0 ? 1 : 0) + (counts.logos > 0 ? 1 : 0) + (counts.patos > 0 ? 1 : 0);
+            const dominant = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b); 
+
+            let feedback = "";
+            
+            if (typesUsed === 3) {
+              if (total === 3) {
+                feedback = "PERFEKT BALANSE! Du brukte 'Det retoriske triangel' optimalt (1 av hver). Du virker troverdig (etos), du har gode fakta (logos), og du treffer dem i hjertet (patos). Det blir vanskelig å si nei til dette!";
+              } else {
+                const domName = dominant === 'etos' ? 'troverdighet (etos)' : dominant === 'logos' ? 'fakta og fornuft (logos)' : 'følelser (patos)';
+                feedback = `SVÆRT GODT BALANSERT! Siden denne talen hadde flere deler, måtte du velge én av appellformene flere ganger. Du lente deg litt ekstra på ${domName}, men fordi du passet på å få med BEGGE de to andre også, har du bygget en utmerket, helhetlig tale!`;
+              }
+            } else if (typesUsed === 2) {
+              const missing = Object.keys(counts).find(key => counts[key] === 0);
+              const missingName = missing === 'etos' ? 'etos (f.eks. ved å vise til din egen troverdighet/erfaring)' : missing === 'logos' ? 'logos (f.eks. ved å vise til fakta/fornuft)' : 'patos (ved å spille mer på følelser)';
+              const domName2 = dominant === 'etos' ? 'ETOS (troverdighet)' : dominant === 'logos' ? 'LOGOS (fakta)' : 'PATOS (følelser)';
+              
+              feedback = `GOD OG TYDELIG TALE! Du har en klar overvekt av ${domName2}, noe som gir talen din sterk slagkraft på ett område. For å gjøre talen helt uovervinnelig, mangler du bare én ting: Prøv å snike inn litt ${missingName} for å treffe publikummet på absolutt alle fronter!`;
+            } else {
+              const domName3 = dominant === 'etos' ? 'ETOS' : dominant === 'logos' ? 'LOGOS' : 'PATOS';
+              feedback = `EKSTREMT ENSIDIG! Du brukte KUN ${domName3} i denne talen! Av og til kan det fungere som et sterkt virkemiddel, men nesten alltid vil publikum savne variasjon. Prøv en gang til, og se om du kan få inn alle fargene i det retoriske triangelet!`;
+            }
+
+            return { counts, feedback };
+          };
+
+          const analyzeCustomText = (text) => {
+            const lowerText = text.toLowerCase();
+            const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+            
+            const etosWords = ['jeg', 'meg', 'vi', 'vår', 'oss', 'erfaring', 'lover', 'stole', 'troverdig', 'ærlig', 'mener', 'ansvar', 'elevråd', 'respekt', 'kjenner'];
+            const logosWords = ['fakta', 'forskning', 'prosent', '%', 'fordi', 'derfor', 'årsak', 'logisk', 'fornuftig', 'viser', 'bevis', 'læring', 'pensum', 'effekt', 'kompetansemål', 'gratis', 'resultat'];
+            const patosWords = ['følelser', 'hjerte', 'trist', 'glad', 'fantastisk', 'krise', 'urettferdig', 'gøy', 'kjedelig', 'spennende', 'magi', 'vær så snill', 'drøm', 'glede', 'latter', 'nostalgi', 'magisk'];
+            
+            const badWords = ['tosk', 'idiot', 'klovn', 'dum', 'teit', 'forbanna', 'jævla', 'faen', 'dritt', 'hater', 'teite'];
+            
+            let etosHits = 0;
+            let logosHits = 0;
+            let patosHits = 0;
+            let badHits = 0;
+            
+            etosWords.forEach(w => { if(lowerText.includes(w)) etosHits++; });
+            logosWords.forEach(w => { if(lowerText.includes(w)) logosHits++; });
+            patosWords.forEach(w => { if(lowerText.includes(w)) patosHits++; });
+            badWords.forEach(w => { if(lowerText.includes(w)) badHits++; });
+            
+            if (text.match(/[0-9]/)) logosHits++; 
+            if (text.includes("!")) patosHits++; 
+            
+            const typesUsed = (etosHits > 0 ? 1 : 0) + (logosHits > 0 ? 1 : 0) + (patosHits > 0 ? 1 : 0);
+            const totalHits = etosHits + logosHits + patosHits;
+            
+            let resultOutcome = {};
+            let magnusSprite = "magnusHappy";
+
+            // LOGIKK FOR KARAKTER 1 TIL 6
+            if (badHits > 0) {
+              resultOutcome = {
+                level: 1,
+                title: "1. RETORISK KATASTROFE",
+                color: "text-red-600",
+                text: "Magnus reiser seg opp, tydelig skuffet. Du bruker stygge ord! Troverdigheten din (etos) er på bunn. Straff: Bare nynorsk grammatikk de neste ukene!"
+              };
+              magnusSprite = "magnusAngry";
+            } else if (words < 50 || typesUsed === 0) {
+              resultOutcome = {
+                level: 2,
+                title: "2. ALTFOR TYNT",
+                color: "text-red-400",
+                text: "Dette var altfor tynt. Magnus rister på hodet over mangelen på innsats. Du må argumentere bedre og prøve å bruke appellformene for å overbevise!"
+              };
+              magnusSprite = "magnusBored";
+            } else if (typesUsed === 1) {
+              resultOutcome = {
+                level: 3,
+                title: "3. LUNKEN MOTTAKELSE",
+                color: "text-orange-400",
+                text: "Du prøvde, men Magnus er dessverre ikke overbevist. Du lener deg for mye på kun én type argumentasjon. Prøv å blande inn de to andre formene fra det retoriske triangelet!"
+              };
+              magnusSprite = "magnusBored";
+            } else if (typesUsed === 2 || (typesUsed === 3 && totalHits < 6)) {
+              resultOutcome = {
+                level: 4,
+                title: "4. ET GODT FORSØK",
+                color: "text-yellow-400",
+                text: "Ikke verst! Magnus lytter i alle fall. Du har noen gode poenger, og bygger opp saken din, men det mangler det lille ekstra stinget for å snu hele pensum på hodet."
+              };
+              magnusSprite = "magnusHappy"; 
+            } else if (typesUsed === 3 && totalHits >= 8 && words >= 80) {
+              resultOutcome = {
+                level: 6,
+                title: "6. LEGENDARISK TRIUMF!!",
+                color: "text-blue-400",
+                text: "MIND BLOWN! Magnus feller en tåre. Dette er den beste appellen han har hørt i sin lærerkarriere. Den retoriske bruken din er feilfri! Brødrene Dal blir hovedfokus. Du er en legende."
+              };
+              magnusSprite = "magnusLegend";
+            } else {
+              // Level 5 fallback
+              resultOutcome = {
+                level: 5,
+                title: "5. STOR SUKSESS!",
+                color: "text-green-300",
+                text: "Veldig bra! Du bruker sterke argumenter og appellerer på flere nivåer. Magnus nikker anerkjennende. Dere bytter ut Ibsen-tekster og analyserer Brødrene Dal!"
+              };
+              magnusSprite = "magnusHappy";
+            }
+
+            return { etosHits, logosHits, patosHits, badHits, resultOutcome, words, magnusSprite };
+          };
+
+          const renderStart = () => (
+            <div className={retroBox}>
+              <h1 className={`${retroTitle} glitch`}>Retorikkspillet<br/></h1>
+              <p className="text-xl mb-8 text-center text-gray-300">Lær å overbevise med Etos, Logos og Patos!</p>
+              
+              <h2 className="text-2xl mb-4 border-b-2 border-green-700 pb-2">Velg Oppdrag:</h2>
+              {MISSIONS.map((m, index) => {
+                const isLocked = m.id === 3 && (!completedMissions.includes(1) || !completedMissions.includes(2));
+                const isCompleted = completedMissions.includes(m.id);
+                
+                let buttonStyle = retroButton;
+                if (isLocked) {
+                  buttonStyle = "block w-full text-left bg-gray-900 border-2 border-red-900 text-red-700 p-4 my-3 cursor-not-allowed opacity-60 text-lg sm:text-xl font-mono";
+                } else if (isCompleted) {
+                  buttonStyle = "block w-full text-left bg-gray-900 border-2 border-green-300 text-green-300 hover:border-green-100 hover:bg-green-800 p-4 my-3 transition-colors cursor-pointer text-lg sm:text-xl font-mono touch-manipulation";
+                }
+                
+                return (
+                  <button 
+                    key={m.id} 
+                    className={buttonStyle} 
+                    onClick={() => !isLocked && startMission(index)}
+                  >
+                    &gt; {m.title} {isLocked ? " [LÅST - KLAR 1 & 2 FØRST]" : isCompleted ? " [FULLFØRT]" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          );
+
+          const renderBriefing = () => (
+            <div className={retroBox}>
+              <h2 className="text-3xl mb-6 font-bold text-white uppercase border-b-2 border-green-700 pb-2">{mission.title}</h2>
+              
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-8 mb-8">
+                <PixelArt spriteName={mission.spriteId} scale={8} />
+                <p className="text-2xl leading-relaxed flex-1">{mission.briefing}</p>
+              </div>
+
+              <button className={retroButton + " text-center uppercase bg-green-900"} onClick={beginBuilding}>
+                [ START TALE-BYGGER ]
+              </button>
+
+              <div className="mt-6 text-center border-t-2 border-gray-800 pt-4">
+                <button className="text-gray-500 hover:text-green-400 underline text-xl touch-manipulation" onClick={() => setGameState('start')}>
+                  &lt; Tilbake til hovedmenyen
+                </button>
+              </div>
+            </div>
+          );
+
+          const renderBuilding = () => {
+            if (mission.isCustomWriting) {
+              const minWords = 50;
+              const maxWords = 300;
+              const currentWords = customText.trim().split(/\s+/).filter(w => w.length > 0).length;
+              
+              const isTooShort = currentWords < minWords;
+              const isTooLong = currentWords > maxWords;
+              const isValid = !isTooShort && !isTooLong;
+
+              let wordCountColor = "text-gray-400";
+              if (isTooShort) wordCountColor = "text-orange-400";
+              if (isTooLong) wordCountColor = "text-red-500";
+              if (isValid) wordCountColor = "text-green-400";
+
+              return (
+                <div className={retroBox}>
+                  <h2 className="text-3xl mb-4 text-green-400 uppercase tracking-widest border-b-2 border-green-700 pb-2">Skriv din appell til Magnus</h2>
+                  <p className="text-xl mb-4 text-gray-300">Husk å bruke både etos (troverdighet/erfaring), logos (fakta/fornuft) og patos (følelser). En god tale har ikke stygge ord!</p>
+                  
+                  {/* Vis skala 1-6 */}
+                  <div className="bg-gray-800 border-2 border-gray-600 p-4 mb-6 text-gray-300 rounded shadow-inner">
+                    <p className="font-bold text-green-400 mb-2 border-b border-gray-600 pb-1 text-xl">MAGNUS' VURDERINGSSKALA (1-6):</p>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-lg">
+                      <li>6: LEGENDARISK TRIUMF!! 🤫🏆</li>
+                      <li>5: STOR SUKSESS! 🏆</li>
+                      <li>4: ET GODT FORSØK</li>
+                      <li>3: LUNKEN MOTTAKELSE</li>
+                      <li>2: ALTFOR TYNT</li>
+                      <li>1: RETORISK KATASTROFE</li>
+                    </ul>
+                  </div>
+
+                  <textarea
+                    className="w-full h-64 bg-gray-900 text-green-400 border-2 border-green-500 p-4 font-mono text-xl focus:outline-none focus:border-green-300 mb-2 shadow-inner"
+                    placeholder="Kjære Magnus..."
+                    value={customText}
+                    onChange={(e) => setCustomText(e.target.value)}
+                  ></textarea>
+                  
+                  <div className={`flex justify-between items-center mb-6 text-lg ${wordCountColor}`}>
+                    <span>Ord: {currentWords}</span>
+                    <span>
+                      {isTooShort ? `(Mangler ${minWords - currentWords} ord)` : 
+                       isTooLong ? `(Fjern ${currentWords - maxWords} ord)` : 
+                       "(Perfekt lengde!)"}
+                    </span>
+                    <span>Krav: {minWords} - {maxWords} ord</span>
+                  </div>
+                  
+                  <button 
+                    className={`${retroButton} text-center uppercase ${!isValid ? 'opacity-50 cursor-not-allowed border-gray-600 hover:bg-gray-900 hover:text-green-400 hover:border-gray-600' : 'bg-green-900'}`} 
+                    onClick={() => {
+                      if(isValid) {
+                        setGameState('result');
+                        if (!completedMissions.includes(mission.id)) {
+                          setCompletedMissions(prev => [...prev, mission.id]);
+                        }
+                      }
+                    }}
+                    disabled={!isValid}
+                  >
+                    [ LEVER TALE TIL ANALYSE ]
+                  </button>
+
+                  <div className="mt-6 text-center border-t-2 border-gray-800 pt-4">
+                    <button className="text-gray-500 hover:text-green-400 underline text-xl touch-manipulation" onClick={() => setGameState('start')}>
+                      &lt; Avbryt og gå til menyen
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            const stage = mission.stages[currentStage];
+              
+            if (verifyingOption) {
+              return (
+                <div className={retroBox}>
+                  <h2 className="text-2xl text-yellow-400 mb-4 uppercase animate-pulse border-b-2 border-yellow-700 pb-2">
+                    SYSTEM-SJEKK: DEKRYPTERING KREVES
+                  </h2>
+                  <p className="text-xl mb-4 text-gray-300">Du vil bruke dette argumentet:</p>
+                  
+                  <div className="bg-gray-800 p-4 border-l-4 border-green-500 mb-6 italic text-xl leading-relaxed">
+                    "{verifyingOption.text}"
+                  </div>
+                  
+                  <p className="text-xl mb-6 font-bold text-white">For å koble dette til talen din, må du bevise at du forstår det. Hvilken appellform er dette?</p>
+                  
+                  {verificationError && (
+                    <div className="bg-red-900 text-red-200 p-4 mb-6 border-2 border-red-500 rounded text-lg leading-relaxed shadow-[0_0_10px_rgba(220,38,38,0.5)]">
+                      {verificationError}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                    <button className="block w-full text-center bg-gray-900 border-2 border-blue-600 hover:bg-blue-900 hover:text-white text-blue-400 p-4 transition-colors cursor-pointer text-2xl uppercase font-bold touch-manipulation" onClick={() => handleVerifyGuess('etos')}>Etos</button>
+                    <button className="block w-full text-center bg-gray-900 border-2 border-yellow-600 hover:bg-yellow-900 hover:text-white text-yellow-400 p-4 transition-colors cursor-pointer text-2xl uppercase font-bold touch-manipulation" onClick={() => handleVerifyGuess('logos')}>Logos</button>
+                    <button className="block w-full text-center bg-gray-900 border-2 border-pink-600 hover:bg-pink-900 hover:text-white text-pink-400 p-4 transition-colors cursor-pointer text-2xl uppercase font-bold touch-manipulation" onClick={() => handleVerifyGuess('patos')}>Patos</button>
+                  </div>
+
+                  <div className="text-center">
+                    <button className="text-gray-500 hover:text-green-400 underline text-lg touch-manipulation" onClick={() => { setVerifyingOption(null); setVerificationError(""); }}>
+                      [ Avbryt og velg et annet argument ]
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className={retroBox}>
+                <div className="flex justify-between items-center mb-6 border-b-2 border-green-700 pb-2">
+                  <span className="text-2xl uppercase tracking-widest">{stage.phaseName}</span>
+                  <span className="text-xl">Del {currentStage + 1} av {mission.stages.length}</span>
+                </div>
+                
+                <p className="text-xl mb-6 text-gray-300">Velg det argumentet du tror fungerer best her:</p>
+                
+                <div className="space-y-4">
+                  {shuffledOptions.map((opt, i) => (
+                    <button key={i} className={retroButton} onClick={() => handleSelectOption(opt)}>
+                      <span className="opacity-50 mr-2">{i+1}.</span> {opt.text}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-8 text-center border-t-2 border-gray-800 pt-4">
+                  <button className="text-gray-500 hover:text-green-400 underline text-xl touch-manipulation" onClick={() => setGameState('start')}>
+                    &lt; Avbryt og gå til menyen
+                  </button>
+                </div>
+              </div>
+            );
+          };
+
+          const renderResult = () => {
+            if (mission.isCustomWriting) {
+              const { etosHits, logosHits, patosHits, badHits, resultOutcome, words, magnusSprite } = analyzeCustomText(customText);
+              
+              return (
+                <div className={retroBox}>
+                  <h2 className="text-3xl mb-6 font-bold text-white text-center uppercase border-b-2 border-green-700 pb-2">Dommen over din tale</h2>
+                  
+                  <div className="flex flex-col md:flex-row gap-6 mb-6">
+                    <div className="bg-gray-800 p-6 border-l-4 border-green-500 rounded text-xl leading-relaxed italic opacity-80 flex-1">
+                      "{customText}"
+                    </div>
+                    
+                    <div className="flex items-center justify-center">
+                      <PixelArt spriteName={magnusSprite} scale={10} />
+                    </div>
+                  </div>
+                  
+                  <div className="mb-6 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-sm">
+                    <div className="bg-gray-900 p-2 border border-gray-700 rounded">
+                      <div className="text-gray-400">ORD</div>
+                      <div className="text-xl font-bold">{words}</div>
+                    </div>
+                    <div className="bg-gray-900 p-2 border border-blue-800 rounded">
+                      <div className="text-blue-400">ETOS</div>
+                      <div className="text-xl font-bold">{etosHits}</div>
+                    </div>
+                    <div className="bg-gray-900 p-2 border border-yellow-800 rounded">
+                      <div className="text-yellow-400">LOGOS</div>
+                      <div className="text-xl font-bold">{logosHits}</div>
+                    </div>
+                    <div className="bg-gray-900 p-2 border border-pink-800 rounded">
+                      <div className="text-pink-400">PATOS</div>
+                      <div className="text-xl font-bold">{patosHits}</div>
+                    </div>
+                    <div className={`bg-gray-900 p-2 border rounded ${badHits > 0 ? 'border-red-800' : 'border-gray-700'}`}>
+                      <div className={badHits > 0 ? 'text-red-500' : 'text-gray-500'}>FY-ORD</div>
+                      <div className={`text-xl font-bold ${badHits > 0 ? 'text-red-500' : 'text-gray-500'}`}>{badHits}</div>
+                    </div>
+                  </div>
+
+                  <div className={`bg-gray-900 p-6 mb-8 text-xl leading-relaxed rounded border-2 ${badHits > 0 ? 'border-red-600' : 'border-gray-600'} text-center`}>
+                    <span className="font-bold text-sm text-gray-500 uppercase tracking-widest block mb-2">Resultat:</span>
+                    <h3 className={`text-3xl sm:text-4xl font-bold mb-4 ${resultOutcome.color}`}>{resultOutcome.title}</h3>
+                    <p className="text-white">{resultOutcome.text}</p>
+                  </div>
+
+                  {resultOutcome.level >= 5 && (
+                    <div className="bg-yellow-900 border-4 border-yellow-400 p-6 mb-8 rounded text-center animate-pulse shadow-[0_0_20px_rgba(250,204,21,0.5)]">
+                      <h2 className="text-3xl text-yellow-300 font-bold mb-4">🏆 GULLBILLETT OPPLÅST! 🏆</h2>
+                      <p className="text-xl text-yellow-100 mb-4">
+                        Du har bevist at du er en ekte retorikk-mester! Ta med iPaden din til Magnus og vis ham billetten. 
+                      </p>
+                      <p className="text-xl text-yellow-200 font-bold">
+                        Hvis du tør å fremføre appellen din foran klassen, vanker det en fysisk premie (og evig respekt)!
+                      </p>
+                    </div>
+                  )}
+
+                  {resultOutcome.level === 6 && (
+                    <div className="bg-purple-900 border-4 border-purple-500 p-6 mb-8 rounded text-center shadow-[0_0_20px_rgba(168,85,247,0.5)]">
+                      <h2 className="text-3xl text-purple-300 font-bold mb-4">🤫 HEMMELIG KODE OPPDAGET 🤫</h2>
+                      <div className="text-4xl font-mono text-white bg-black p-4 inline-block mb-4 border border-purple-500 tracking-widest">
+                        MAGNUS=LEGENDE
+                      </div>
+                      <p className="text-xl text-purple-200">
+                        Visk dette passordet i øret til læreren din for å havne på den hemmelige listen (og kanskje få en premie til). Ikke si det til noen!
+                      </p>
+                    </div>
+                  )}
+
+                  <button className={retroButton + " text-center"} onClick={() => setGameState('start')}>
+                    [ RETURNER TIL HOVEDMENY ]
+                  </button>
+                </div>
+              );
+            }
+
+            const { counts, feedback } = getAnalysis();
+
+            const typeColor = (type) => {
+              if(type === 'etos') return 'text-blue-400';
+              if(type === 'logos') return 'text-yellow-400';
+              if(type === 'patos') return 'text-pink-400';
+              return '';
+            };
+
+            return (
+              <div className={retroBox}>
+                <h2 className="text-3xl mb-6 font-bold text-white text-center uppercase border-b-2 border-green-700 pb-2">Analyse av talen</h2>
+                
+                <div className="bg-gray-800 p-6 mb-6 border-l-4 border-green-500 rounded text-xl leading-relaxed italic shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+                  <h3 className="text-sm font-sans text-gray-500 mb-4 not-italic uppercase tracking-widest">-- Endelig tale-utskrift --</h3>
+                  
+                  <p className="text-gray-300">
+                    {selections.map((sel, i) => {
+                      const stage = mission.stages[i];
+                      return (
+                        <span key={i}>
+                          {stage.binding && <span className="text-gray-400 font-bold not-italic"> {stage.binding} </span>}
+                          <span className={typeColor(sel.type)}>"{sel.text}"</span>
+                          <span className={`text-xs not-italic uppercase font-bold tracking-widest ml-1 mr-2 ${typeColor(sel.type)}`}>
+                            [{sel.type}]
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </p>
+                </div>
+
+                <div className="mb-6 grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-gray-900 p-2 border border-blue-800 rounded">
+                    <div className="text-blue-400 text-sm">ETOS</div>
+                    <div className="text-2xl font-bold">{counts.etos}</div>
+                  </div>
+                  <div className="bg-gray-900 p-2 border border-yellow-800 rounded">
+                    <div className="text-yellow-400 text-sm">LOGOS</div>
+                    <div className="text-2xl font-bold">{counts.logos}</div>
+                  </div>
+                  <div className="bg-gray-900 p-2 border border-pink-800 rounded">
+                    <div className="text-pink-400 text-sm">PATOS</div>
+                    <div className="text-2xl font-bold">{counts.patos}</div>
+                  </div>
+                </div>
+
+                <div className="bg-green-900 text-white p-4 mb-8 text-xl leading-relaxed rounded border-2 border-green-500">
+                  <span className="font-bold block mb-2 text-green-300">SYSTEM-FEEDBACK:</span>
+                  {feedback}
+                </div>
+
+                <button className={retroButton + " text-center"} onClick={() => setGameState('start')}>
+                  [ RETURNER TIL HOVEDMENY ]
+                </button>
+              </div>
+            );
+          };
+
+          return (
+            <div className={retroContainer}>
+              <div className="absolute inset-0 scanlines z-20 pointer-events-none"></div>
+              
+              {gameState === 'start' && renderStart()}
+              {gameState === 'briefing' && renderBriefing()}
+              {gameState === 'building' && renderBuilding()}
+              {gameState === 'result' && renderResult()}
+              
+              <div className="absolute bottom-2 right-4 text-sm opacity-50 z-10 font-mono text-gray-400">
+                v1.3 (Etos, Logos, Patos)
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
